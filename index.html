@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CoFrac MS Data</title>
+    <title>MS Data Viewer</title>
     <style>
         :root {
             --bg-primary: #1e1e1e;
@@ -13,6 +13,8 @@
             --accent: #569cd6;
             --border: #404040;
             --sidebar-width: 250px;
+            --dataset-001: #4ec9b0;
+            --dataset-002: #ce9178;
         }
 
         body {
@@ -49,10 +51,21 @@
             border-radius: 4px;
             transition: background-color 0.2s;
             font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .plot-list-item:hover {
             background-color: rgba(86, 156, 214, 0.1);
+        }
+
+        .plot-name {
+            flex: 1;
+        }
+
+        .plot-name-initial {
+            color: var(--accent);
         }
 
         .main-content {
@@ -109,37 +122,71 @@
             padding: 0.8rem 1rem;
             cursor: pointer;
             transition: background-color 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
 
         .suggestion-item:hover {
             background-color: rgba(86, 156, 214, 0.1);
         }
 
-        .plot-container {
-            flex: 1;
-            width: 100%;
-            max-width: 1200px;
-            position: relative;
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            overflow: hidden;
+        .dataset-bar {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--border);
             display: flex;
-            justify-content: center;
+            gap: 0.5rem;
             align-items: center;
-            transition: width 0.3s ease, height 0.3s ease;
+            justify-content: center;
+            background: var(--bg-secondary);
         }
 
-        .plot-iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-            opacity: 0;
-            transition: opacity 0.3s;
+        .dataset-indicator {
+            font-size: 0.8rem;
+            padding: 0.2rem 0.8rem;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: opacity 0.2s;
         }
 
-        .plot-iframe.loaded {
-            opacity: 1;
+        .dataset-indicator:hover {
+            opacity: 0.8;
+        }
+
+        .dataset-001 {
+            background: var(--dataset-001);
+            color: var(--bg-primary);
+        }
+
+        .dataset-002 {
+            background: var(--dataset-002);
+            color: var(--bg-primary);
+        }
+
+        .dataset-quality {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            display: none;
+        }
+
+        .dataset-quality.visible {
+            display: block;
+        }
+
+        .dataset-tags {
+            display: flex;
+            gap: 0.3rem;
+        }
+
+        .dataset-tag {
+            font-size: 0.7rem;
+            padding: 0.1rem 0.3rem;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+
+        .dataset-tag:hover {
+            opacity: 0.8;
         }
 
         .letter-section {
@@ -155,25 +202,27 @@
             margin-bottom: 0.5rem;
         }
 
-        .alphabet-nav {
-            padding: 1rem;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            border-bottom: 1px solid var(--border);
+        .plot-container {
+            flex: 1;
+            width: 100%;
+            max-width: 1200px;
+            position: relative;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            overflow: hidden;
         }
 
-        .alphabet-nav span {
-            color: var(--text-dim);
-            cursor: pointer;
-            padding: 0.2rem 0.4rem;
-            border-radius: 4px;
-            transition: all 0.2s;
+        .plot-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            opacity: 0;
+            transition: opacity 0.3s;
         }
 
-        .alphabet-nav span:hover {
-            color: var(--text-primary);
-            background: rgba(86, 156, 214, 0.1);
+        .plot-iframe.loaded {
+            opacity: 1;
         }
 
         .loading-spinner {
@@ -203,7 +252,18 @@
 <body>
     <div class="container">
         <div class="sidebar">
-            <div class="alphabet-nav"></div>
+            <div class="dataset-bar">
+                <span class="dataset-indicator dataset-001" onclick="toggleDatasetQuality('001')">001</span>
+                <span class="dataset-indicator dataset-002" onclick="toggleDatasetQuality('002')">002</span>
+            </div>
+            <div id="quality-001" class="dataset-quality">
+                <div class="dataset-quality-title">Dataset 001 Quality Plots</div>
+                <!-- Quality plot links will be added here -->
+            </div>
+            <div id="quality-002" class="dataset-quality">
+                <div class="dataset-quality-title">Dataset 002 Quality Plots</div>
+                <!-- Quality plot links will be added here -->
+            </div>
             <div class="plot-list"></div>
         </div>
         <div class="main-content">
@@ -222,8 +282,7 @@
     </div>
 
     <script>
-        // PLOT_NAMES will be replaced by the Python script
-        const PLOT_NAMES = ["A16L1", "ABTB2", "AMRA1", "ANFY1", "APBP2", "ARMC5", "ASB3", "ASB6", "BACD2", "BACD3", "BACH1", "BTBD1", "BTBD2", "BTBD6", "BTBD9", "BTBDA", "BTBDB", "CAND1", "CCNF", "CIAO1", "COP1", "CRBN", "CSN2", "CSN3", "CSN4", "CSN5", "CSN6", "CSN7A", "CSN7B", "CSN8", "CUL1", "CUL2", "CUL3", "CUL4A", "CUL4B", "CUL5", "CUL7", "DCA10", "DCA11", "DCA12", "DCA13", "DCA15", "DCA16", "DCA17", "DCAF1", "DCAF4", "DCAF5", "DCAF6", "DCAF7", "DCAF8", "DDA1", "DDB1", "DDB2", "DET1", "DTL", "EED", "ELOB", "ELOC", "ERCC8", "FANCJ", "FBH1", "FBSP1", "FBW1A", "FBX11", "FBX17", "FBX2", "FBX21", "FBX22", "FBX28", "FBX3", "FBX30", "FBX33", "FBX38", "FBX4", "FBX42", "FBX44", "FBX46", "FBX5", "FBX7", "FBX9", "FBXL2", "FBXL3", "FBXL4", "FBXL6", "FBXL8", "FBXW2", "FBXW4", "FBXW5", "FBXW7", "FBXW8", "FBXW9", "FEM1A", "FEM1B", "FEM1C", "FXL12", "FXL15", "FXL18", "FXL19", "FXL20", "GAN", "GBB2", "GRWD1", "GZF1", "HIC2", "IBTK", "IPP", "KAISO", "KBTB2", "KBTB4", "KBTB6", "KBTB7", "KBTB8", "KBTBB", "KCD12", "KCD15", "KCD17", "KCD20", "KCD21", "KCTD2", "KCTD3", "KCTD5", "KCTD6", "KDM2A", "KDM2B", "KEAP1", "KLD10", "KLDC2", "KLDC3", "KLH11", "KLH12", "KLH13", "KLH14", "KLH15", "KLH18", "KLH20", "KLH21", "KLH22", "KLH23", "KLH24", "KLH25", "KLH26", "KLH36", "KLH41", "KLH42", "KLHL12", "KLHL5", "KLHL7", "KLHL8", "KLHL9", "KTNB1", "LG3BP", "LIS1", "LLR1", "LRC14", "LRC28", "LRC41", "LRC58", "LZTR1", "MYNN", "NACC1", "NACC2", "NLE1", "NS1BP", "NUP43", "PATZ1", "PRAME", "PSMA2", "PSMB4", "PSMB5", "PSMB6", "PWP1", "RACK1", "RBBP4", "RBBP5", "RBBP7", "RBX1", "RHBT3", "RPN11", "RPS27A", "SHKB1", "SKP2", "SLX4", "SMU1", "SNR40", "SPOP", "TLE1", "TLE3", "TOIP2", "TP4AP", "TRIP12", "TZAP", "UBCH7", "VHL", "WDR12", "WDR5", "WDR53", "WDR59", "WDR61", "WDR76", "WDR82", "WDTC1", "WSB1", "ZBT10", "ZBT11", "ZBT12", "ZBT18", "ZBT21", "ZBT24", "ZBT40", "ZBT7A", "ZBTB1", "ZBTB2", "ZER1", "ZN131", "ZSWM8", "ZY11A", "ZY11B"];
+        const DATASETS = {"001": {"name": "Dataset 001", "plots": ["A16L1", "ABTB2", "AMRA1", "ANFY1", "APBP2", "ASB13", "ASB3", "ASB6", "ASB8", "BACD3", "BACH1", "BTBD1", "BTBD2", "BTBD7", "BTBD8", "BTBD9", "BTBDA", "BTBDB", "CAND1", "CCDC8", "CCNF", "CIAO1", "CISH", "COP1", "CSN2", "CSN3", "CSN4", "CSN5", "CSN6", "CSN7A", "CSN7B", "CSN8", "CUL1", "CUL3", "CUL4A", "CUL5", "CUL9", "DCA11", "DCA15", "DCA16", "DCAF1", "DCAF4", "DCAF5", "DCAF6", "DCAF7", "DCAF8", "DDA1", "DDB1", "DDB2", "DET1", "ELOB", "ELOC", "FANCJ", "FBH1", "FBSP1", "FBW1A", "FBW1B", "FBX2", "FBX21", "FBX22", "FBX28", "FBX3", "FBX30", "FBX4", "FBX42", "FBX46", "FBX5", "FBX7", "FBX9", "FBXL3", "FBXL6", "FBXL8", "FBXW4", "FBXW7", "FBXW9", "FEM1B", "FXL12", "FXL15", "FXL18", "FXL19", "GAN", "GBB2", "GRWD1", "GZF1", "HIC2", "IBTK", "KAISO", "KBTB2", "KBTB4", "KBTB6", "KBTB7", "KBTB8", "KBTBB", "KCD12", "KCD15", "KCD17", "KCD20", "KCD21", "KCNC1", "KCNC3", "KCTD2", "KCTD3", "KCTD5", "KCTD6", "KCTD8", "KDM2A", "KDM2B", "KEAP1", "KLD10", "KLDC2", "KLH10", "KLH11", "KLH12", "KLH13", "KLH14", "KLH18", "KLH20", "KLH21", "KLH22", "KLH23", "KLH26", "KLH36", "KLH40", "KLH42", "KLHL12", "KLHL5", "KLHL9", "KTNB1", "LG3BP", "LIS1", "LLR1", "LRC14", "LRC28", "LRC41", "LZTR1", "MYNN", "NACC1", "NLE1", "NS1BP", "NUP43", "PATZ1", "PRAME", "PSMA2", "PSMB4", "PSMB5", "PSMB6", "PWP1", "RACK1", "RB40B", "RB40C", "RBBP4", "RBBP5", "RBBP7", "RBX1", "RCBT1", "RPN11", "RPS27A", "SKP2", "SLX4", "SMU1", "SNR40", "SOCS4", "SPOP", "TLE1", "TLE3", "TOIP2", "TP4AP", "TRIP12", "TZAP", "UBE2L3", "VHL", "WDR12", "WDR5", "WDR59", "WDR61", "WDR76", "WDR82", "WDTC1", "ZBT10", "ZBT11", "ZBT17", "ZBT18", "ZBT21", "ZBT24", "ZBT41", "ZBT8B", "ZER1", "ZSWM6", "ZSWM8", "ZY11B"], "quality_plots": [], "path": "out/001"}, "002": {"name": "Dataset 002", "plots": ["A16L1", "ABTB2", "AMRA1", "ANFY1", "APBP2", "ARMC5", "ASB3", "ASB6", "BACD2", "BACD3", "BACH1", "BTBD1", "BTBD2", "BTBD6", "BTBD9", "BTBDA", "BTBDB", "CAND1", "CCNF", "CIAO1", "COP1", "CRBN", "CSN2", "CSN3", "CSN4", "CSN5", "CSN6", "CSN7A", "CSN7B", "CSN8", "CUL1", "CUL2", "CUL3", "CUL4A", "CUL4B", "CUL5", "CUL7", "DCA10", "DCA11", "DCA12", "DCA13", "DCA15", "DCA16", "DCA17", "DCAF1", "DCAF4", "DCAF5", "DCAF6", "DCAF7", "DCAF8", "DDA1", "DDB1", "DDB2", "DET1", "DTL", "EED", "ELOB", "ELOC", "ERCC8", "FANCJ", "FBH1", "FBSP1", "FBW1A", "FBX11", "FBX17", "FBX2", "FBX21", "FBX22", "FBX28", "FBX3", "FBX30", "FBX33", "FBX38", "FBX4", "FBX42", "FBX44", "FBX46", "FBX5", "FBX7", "FBX9", "FBXL2", "FBXL3", "FBXL4", "FBXL6", "FBXL8", "FBXW2", "FBXW4", "FBXW5", "FBXW7", "FBXW8", "FBXW9", "FEM1A", "FEM1B", "FEM1C", "FXL12", "FXL15", "FXL18", "FXL19", "FXL20", "GAN", "GBB2", "GRWD1", "GZF1", "HIC2", "IBTK", "IPP", "KAISO", "KBTB2", "KBTB4", "KBTB6", "KBTB7", "KBTB8", "KBTBB", "KCD12", "KCD15", "KCD17", "KCD20", "KCD21", "KCTD2", "KCTD3", "KCTD5", "KCTD6", "KDM2A", "KDM2B", "KEAP1", "KLD10", "KLDC2", "KLDC3", "KLH11", "KLH12", "KLH13", "KLH14", "KLH15", "KLH18", "KLH20", "KLH21", "KLH22", "KLH23", "KLH24", "KLH25", "KLH26", "KLH36", "KLH41", "KLH42", "KLHL12", "KLHL5", "KLHL7", "KLHL8", "KLHL9", "KTNB1", "LG3BP", "LIS1", "LLR1", "LRC14", "LRC28", "LRC41", "LRC58", "LZTR1", "MYNN", "NACC1", "NACC2", "NLE1", "NS1BP", "NUP43", "PATZ1", "PRAME", "PSMA2", "PSMB4", "PSMB5", "PSMB6", "PWP1", "RACK1", "RBBP4", "RBBP5", "RBBP7", "RBX1", "RHBT3", "RPN11", "RPS27A", "SHKB1", "SKP2", "SLX4", "SMU1", "SNR40", "SPOP", "TLE1", "TLE3", "TOIP2", "TP4AP", "TRIP12", "TZAP", "UBCH7", "UBE2L3", "VHL", "WDR12", "WDR5", "WDR53", "WDR59", "WDR61", "WDR76", "WDR82", "WDTC1", "WSB1", "ZBT10", "ZBT11", "ZBT12", "ZBT18", "ZBT21", "ZBT24", "ZBT40", "ZBT7A", "ZBTB1", "ZBTB2", "ZER1", "ZN131", "ZSWM8", "ZY11A", "ZY11B"], "quality_plots": [], "path": "out/002"}};
         
         const searchInput = document.querySelector('.search-input');
         const suggestionsContainer = document.querySelector('.suggestions');
@@ -231,7 +290,7 @@
         const loadingSpinner = document.querySelector('.loading-spinner');
         let debounceTimer;
 
-        function loadPlot(name) {
+        function loadPlot(name, datasetId) {
             plotFrame.style.opacity = '0';
             plotFrame.classList.remove('loaded');
             loadingSpinner.classList.add('visible');
@@ -239,21 +298,7 @@
             plotFrame.onload = () => {
                 loadingSpinner.classList.remove('visible');
                 
-                // Get the content dimensions from the iframe
                 const iframeDoc = plotFrame.contentWindow.document;
-                const plotContent = iframeDoc.body.firstElementChild;
-                
-                if (plotContent) {
-                    const contentRect = plotContent.getBoundingClientRect();
-                    const padding = 40;
-                    
-                    // Set container dimensions
-                    const plotContainer = document.querySelector('.plot-container');
-                    plotContainer.style.width = `${contentRect.width + padding}px`;
-                    plotContainer.style.height = `${contentRect.height + padding}px`;
-                }
-
-                // Apply dark theme
                 const style = iframeDoc.createElement('style');
                 style.textContent = `
                     body { 
@@ -274,7 +319,90 @@
                 plotFrame.classList.add('loaded');
             };
             
-            plotFrame.src = `./${name}_abundance.html`;
+            plotFrame.src = `./${datasetId}/${name}_abundance.html`;
+        }
+
+        function toggleDatasetQuality(datasetId) {
+            const qualityDiv = document.getElementById(`quality-${datasetId}`);
+            const isVisible = qualityDiv.classList.contains('visible');
+            
+            document.querySelectorAll('.dataset-quality').forEach(div => {
+                div.classList.remove('visible');
+            });
+            
+            if (!isVisible) {
+                qualityDiv.classList.add('visible');
+            }
+        }
+
+        function initializeSidebar() {
+            const plotList = document.querySelector('.plot-list');
+            
+            // Create a map of all unique plot names and their available datasets
+            const plotsMap = new Map();
+            Object.entries(DATASETS).forEach(([datasetId, dataset]) => {
+                dataset.plots.forEach(plot => {
+                    if (!plotsMap.has(plot)) {
+                        plotsMap.set(plot, new Set());
+                    }
+                    plotsMap.get(plot).add(datasetId);
+                });
+            });
+
+            // Sort plot names and organize by letter
+            const namesByLetter = {};
+            
+            for (const [name, datasets] of plotsMap) {
+                const firstLetter = name[0].toUpperCase();
+                if (!namesByLetter[firstLetter]) {
+                    namesByLetter[firstLetter] = [];
+                }
+                namesByLetter[firstLetter].push({name, datasets});
+            }
+
+            // Create plot list with dataset indicators
+            Object.keys(namesByLetter).sort().forEach(letter => {
+                const section = document.createElement('div');
+                section.className = 'letter-section';
+
+                const header = document.createElement('div');
+                header.className = 'letter-header';
+                header.textContent = letter;
+                section.appendChild(header);
+
+                namesByLetter[letter].sort((a, b) => a.name.localeCompare(b.name)).forEach(({name, datasets}) => {
+                    const div = document.createElement('div');
+                    div.className = 'plot-list-item';
+                    
+                    const plotName = document.createElement('span');
+                    plotName.className = 'plot-name';
+                    const initial = document.createElement('span');
+                    initial.className = 'plot-name-initial';
+                    initial.textContent = name[0];
+                    plotName.appendChild(initial);
+                    plotName.appendChild(document.createTextNode(name.slice(1)));
+                    
+                    const tags = document.createElement('div');
+                    tags.className = 'dataset-tags';
+                    
+                    datasets.forEach(datasetId => {
+                        const tag = document.createElement('span');
+                        tag.className = `dataset-tag dataset-${datasetId}`;
+                        tag.textContent = datasetId;
+                        tag.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            loadPlot(name, datasetId);
+                        });
+                        tags.appendChild(tag);
+                    });
+
+                    div.appendChild(plotName);
+                    div.appendChild(tags);
+                    section.appendChild(div);
+                });
+
+                plotList.appendChild(section);
+            });
         }
 
         searchInput.addEventListener('input', () => {
@@ -284,20 +412,47 @@
                 suggestionsContainer.innerHTML = '';
                 
                 if (query) {
-                    const matches = PLOT_NAMES.filter(name => 
-                        name.toLowerCase().includes(query)
-                    );
+                    const matches = new Set();
+                    Object.values(DATASETS).forEach(dataset => {
+                        dataset.plots.forEach(plot => {
+                            if (plot.toLowerCase().includes(query)) {
+                                matches.add(plot);
+                            }
+                        });
+                    });
                     
-                    if (matches.length > 0) {
-                        matches.forEach(name => {
+                    if (matches.size > 0) {
+                        Array.from(matches).sort().forEach(plot => {
                             const div = document.createElement('div');
                             div.className = 'suggestion-item';
-                            div.textContent = name;
-                            div.addEventListener('click', () => {
-                                searchInput.value = name;
-                                suggestionsContainer.classList.remove('visible');
-                                loadPlot(name);
+                            
+                            const name = document.createElement('span');
+                            const initial = document.createElement('span');
+                            initial.className = 'plot-name-initial';
+                            initial.textContent = plot[0];
+                            name.appendChild(initial);
+                            name.appendChild(document.createTextNode(plot.slice(1)));
+                            
+                            const tags = document.createElement('div');
+                            tags.className = 'dataset-tags';
+                            
+                            Object.entries(DATASETS).forEach(([datasetId, dataset]) => {
+                                if (dataset.plots.includes(plot)) {
+                                    const tag = document.createElement('span');
+                                    tag.className = `dataset-tag dataset-${datasetId}`;
+                                    tag.textContent = datasetId;
+                                    tag.addEventListener('click', (e) => {
+                                        e.stopPropagation();
+                                        loadPlot(plot, datasetId);
+                                        searchInput.value = plot;
+                                        suggestionsContainer.classList.remove('visible');
+                                    });
+                                    tags.appendChild(tag);
+                                }
                             });
+                            
+                            div.appendChild(name);
+                            div.appendChild(tags);
                             suggestionsContainer.appendChild(div);
                         });
                         suggestionsContainer.classList.add('visible');
@@ -310,70 +465,9 @@
             }, 300);
         });
 
-        function initializeSidebar() {
-            const plotList = document.querySelector('.plot-list');
-            const alphabetNav = document.querySelector('.alphabet-nav');
-            
-            const namesByLetter = {};
-            const alphabet = new Set();
-            
-            PLOT_NAMES.forEach(name => {
-                const firstLetter = name[0].toUpperCase();
-                alphabet.add(firstLetter);
-                if (!namesByLetter[firstLetter]) {
-                    namesByLetter[firstLetter] = [];
-                }
-                namesByLetter[firstLetter].push(name);
-            });
-
-            Array.from(alphabet).sort().forEach(letter => {
-                const span = document.createElement('span');
-                span.textContent = letter;
-                span.addEventListener('click', () => {
-                    document.querySelector(`#letter-${letter}`).scrollIntoView({ behavior: 'smooth' });
-                });
-                alphabetNav.appendChild(span);
-            });
-
-            Object.keys(namesByLetter).sort().forEach(letter => {
-                const section = document.createElement('div');
-                section.className = 'letter-section';
-                section.id = `letter-${letter}`;
-
-                const header = document.createElement('div');
-                header.className = 'letter-header';
-                header.textContent = letter;
-                section.appendChild(header);
-
-                namesByLetter[letter].sort().forEach(name => {
-                    const div = document.createElement('div');
-                    div.className = 'plot-list-item';
-                    div.textContent = name;
-                    div.addEventListener('click', () => {
-                        searchInput.value = name;
-                        loadPlot(name);
-                    });
-                    section.appendChild(div);
-                });
-
-                plotList.appendChild(section);
-            });
-        }
-
         document.addEventListener('click', (e) => {
             if (!suggestionsContainer.contains(e.target) && e.target !== searchInput) {
                 suggestionsContainer.classList.remove('visible');
-            }
-        });
-
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && searchInput.value.trim()) {
-                const firstSuggestion = suggestionsContainer.querySelector('.suggestion-item');
-                if (firstSuggestion) {
-                    searchInput.value = firstSuggestion.textContent;
-                    loadPlot(firstSuggestion.textContent);
-                    suggestionsContainer.classList.remove('visible');
-                }
             }
         });
 
