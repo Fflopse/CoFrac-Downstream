@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoFrac MS Data</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --text-primary: #d4d4d4;
+            --text-dim: #808080;
+            --accent: #569cd6;
+            --border: #404040;
+            --sidebar-width: 250px;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: var(--sidebar-width);
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .plot-list {
+            padding: 1rem;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .plot-list-item {
+            padding: 0.5rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .plot-list-item:hover {
+            background-color: rgba(86, 156, 214, 0.1);
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .search-container {
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 2rem;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent);
+        }
+
+        .suggestions {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            margin-top: 0.5rem;
+            max-height: 200px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+        }
+
+        .suggestions.visible {
+            display: block;
+        }
+
+        .suggestion-item {
+            padding: 0.8rem 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .suggestion-item:hover {
+            background-color: rgba(86, 156, 214, 0.1);
+        }
+
+        .plot-container {
+            flex: 1;
+            width: 100%;
+            max-width: 1200px;
+            position: relative;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: width 0.3s ease, height 0.3s ease;
+        }
+
+        .plot-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .plot-iframe.loaded {
+            opacity: 1;
+        }
+
+        .letter-section {
+            margin: 1rem 0;
+        }
+
+        .letter-header {
+            color: var(--accent);
+            font-size: 1rem;
+            font-weight: bold;
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 0.5rem;
+        }
+
+        .alphabet-nav {
+            padding: 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .alphabet-nav span {
+            color: var(--text-dim);
+            cursor: pointer;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .alphabet-nav span:hover {
+            color: var(--text-primary);
+            background: rgba(86, 156, 214, 0.1);
+        }
+
+        .loading-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border);
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            display: none;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-spinner.visible {
+            display: block;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="alphabet-nav"></div>
+            <div class="plot-list"></div>
+        </div>
+        <div class="main-content">
+            <div class="search-container">
+                <input type="text" 
+                       class="search-input" 
+                       placeholder="Search plots..."
+                       autocomplete="off">
+                <div class="suggestions"></div>
+            </div>
+            <div class="plot-container">
+                <div class="loading-spinner"></div>
+                <iframe class="plot-iframe" id="plotFrame"></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PLOT_NAMES will be replaced by the Python script
+        const PLOT_NAMES = ["A16L1", "ABTB2", "AMRA1", "ANFY1", "APBP2", "ARMC5", "ASB3", "ASB6", "BACD2", "BACD3", "BACH1", "BTBD1", "BTBD2", "BTBD6", "BTBD9", "BTBDA", "BTBDB", "CAND1", "CCNF", "CIAO1", "COP1", "CRBN", "CSN2", "CSN3", "CSN4", "CSN5", "CSN6", "CSN7A", "CSN7B", "CSN8", "CUL1", "CUL2", "CUL3", "CUL4A", "CUL4B", "CUL5", "CUL7", "DCA10", "DCA11", "DCA12", "DCA13", "DCA15", "DCA16", "DCA17", "DCAF1", "DCAF4", "DCAF5", "DCAF6", "DCAF7", "DCAF8", "DDA1", "DDB1", "DDB2", "DET1", "DTL", "EED", "ELOB", "ELOC", "ERCC8", "FANCJ", "FBH1", "FBSP1", "FBW1A", "FBX11", "FBX17", "FBX2", "FBX21", "FBX22", "FBX28", "FBX3", "FBX30", "FBX33", "FBX38", "FBX4", "FBX42", "FBX44", "FBX46", "FBX5", "FBX7", "FBX9", "FBXL2", "FBXL3", "FBXL4", "FBXL6", "FBXL8", "FBXW2", "FBXW4", "FBXW5", "FBXW7", "FBXW8", "FBXW9", "FEM1A", "FEM1B", "FEM1C", "FXL12", "FXL15", "FXL18", "FXL19", "FXL20", "GAN", "GBB2", "GRWD1", "GZF1", "HIC2", "IBTK", "IPP", "KAISO", "KBTB2", "KBTB4", "KBTB6", "KBTB7", "KBTB8", "KBTBB", "KCD12", "KCD15", "KCD17", "KCD20", "KCD21", "KCTD2", "KCTD3", "KCTD5", "KCTD6", "KDM2A", "KDM2B", "KEAP1", "KLD10", "KLDC2", "KLDC3", "KLH11", "KLH12", "KLH13", "KLH14", "KLH15", "KLH18", "KLH20", "KLH21", "KLH22", "KLH23", "KLH24", "KLH25", "KLH26", "KLH36", "KLH41", "KLH42", "KLHL12", "KLHL5", "KLHL7", "KLHL8", "KLHL9", "KTNB1", "LG3BP", "LIS1", "LLR1", "LRC14", "LRC28", "LRC41", "LRC58", "LZTR1", "MYNN", "NACC1", "NACC2", "NLE1", "NS1BP", "NUP43", "PATZ1", "PRAME", "PSMA2", "PSMB4", "PSMB5", "PSMB6", "PWP1", "RACK1", "RBBP4", "RBBP5", "RBBP7", "RBX1", "RHBT3", "RPN11", "RPS27A", "SHKB1", "SKP2", "SLX4", "SMU1", "SNR40", "SPOP", "TLE1", "TLE3", "TOIP2", "TP4AP", "TRIP12", "TZAP", "UBCH7", "VHL", "WDR12", "WDR5", "WDR53", "WDR59", "WDR61", "WDR76", "WDR82", "WDTC1", "WSB1", "ZBT10", "ZBT11", "ZBT12", "ZBT18", "ZBT21", "ZBT24", "ZBT40", "ZBT7A", "ZBTB1", "ZBTB2", "ZER1", "ZN131", "ZSWM8", "ZY11A", "ZY11B"];
+        
+        const searchInput = document.querySelector('.search-input');
+        const suggestionsContainer = document.querySelector('.suggestions');
+        const plotFrame = document.querySelector('#plotFrame');
+        const loadingSpinner = document.querySelector('.loading-spinner');
+        let debounceTimer;
+
+        function loadPlot(name) {
+            plotFrame.style.opacity = '0';
+            plotFrame.classList.remove('loaded');
+            loadingSpinner.classList.add('visible');
+            
+            plotFrame.onload = () => {
+                loadingSpinner.classList.remove('visible');
+                
+                // Get the content dimensions from the iframe
+                const iframeDoc = plotFrame.contentWindow.document;
+                const plotContent = iframeDoc.body.firstElementChild;
+                
+                if (plotContent) {
+                    const contentRect = plotContent.getBoundingClientRect();
+                    const padding = 40;
+                    
+                    // Set container dimensions
+                    const plotContainer = document.querySelector('.plot-container');
+                    plotContainer.style.width = `${contentRect.width + padding}px`;
+                    plotContainer.style.height = `${contentRect.height + padding}px`;
+                }
+
+                // Apply dark theme
+                const style = iframeDoc.createElement('style');
+                style.textContent = `
+                    body { 
+                        background: #1e1e1e !important; 
+                        margin: 0 !important;
+                        display: flex !important;
+                        justify-content: center !important;
+                        align-items: center !important;
+                        min-height: 100vh !important;
+                    }
+                    .js-plotly-plot {
+                        margin: 0 auto !important;
+                    }
+                `;
+                iframeDoc.head.appendChild(style);
+
+                plotFrame.style.opacity = '1';
+                plotFrame.classList.add('loaded');
+            };
+            
+            plotFrame.src = `./${name}_abundance.html`;
+        }
+
+        searchInput.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const query = searchInput.value.trim().toLowerCase();
+                suggestionsContainer.innerHTML = '';
+                
+                if (query) {
+                    const matches = PLOT_NAMES.filter(name => 
+                        name.toLowerCase().includes(query)
+                    );
+                    
+                    if (matches.length > 0) {
+                        matches.forEach(name => {
+                            const div = document.createElement('div');
+                            div.className = 'suggestion-item';
+                            div.textContent = name;
+                            div.addEventListener('click', () => {
+                                searchInput.value = name;
+                                suggestionsContainer.classList.remove('visible');
+                                loadPlot(name);
+                            });
+                            suggestionsContainer.appendChild(div);
+                        });
+                        suggestionsContainer.classList.add('visible');
+                    } else {
+                        suggestionsContainer.classList.remove('visible');
+                    }
+                } else {
+                    suggestionsContainer.classList.remove('visible');
+                }
+            }, 300);
+        });
+
+        function initializeSidebar() {
+            const plotList = document.querySelector('.plot-list');
+            const alphabetNav = document.querySelector('.alphabet-nav');
+            
+            const namesByLetter = {};
+            const alphabet = new Set();
+            
+            PLOT_NAMES.forEach(name => {
+                const firstLetter = name[0].toUpperCase();
+                alphabet.add(firstLetter);
+                if (!namesByLetter[firstLetter]) {
+                    namesByLetter[firstLetter] = [];
+                }
+                namesByLetter[firstLetter].push(name);
+            });
+
+            Array.from(alphabet).sort().forEach(letter => {
+                const span = document.createElement('span');
+                span.textContent = letter;
+                span.addEventListener('click', () => {
+                    document.querySelector(`#letter-${letter}`).scrollIntoView({ behavior: 'smooth' });
+                });
+                alphabetNav.appendChild(span);
+            });
+
+            Object.keys(namesByLetter).sort().forEach(letter => {
+                const section = document.createElement('div');
+                section.className = 'letter-section';
+                section.id = `letter-${letter}`;
+
+                const header = document.createElement('div');
+                header.className = 'letter-header';
+                header.textContent = letter;
+                section.appendChild(header);
+
+                namesByLetter[letter].sort().forEach(name => {
+                    const div = document.createElement('div');
+                    div.className = 'plot-list-item';
+                    div.textContent = name;
+                    div.addEventListener('click', () => {
+                        searchInput.value = name;
+                        loadPlot(name);
+                    });
+                    section.appendChild(div);
+                });
+
+                plotList.appendChild(section);
+            });
+        }
+
+        document.addEventListener('click', (e) => {
+            if (!suggestionsContainer.contains(e.target) && e.target !== searchInput) {
+                suggestionsContainer.classList.remove('visible');
+            }
+        });
+
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && searchInput.value.trim()) {
+                const firstSuggestion = suggestionsContainer.querySelector('.suggestion-item');
+                if (firstSuggestion) {
+                    searchInput.value = firstSuggestion.textContent;
+                    loadPlot(firstSuggestion.textContent);
+                    suggestionsContainer.classList.remove('visible');
+                }
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', initializeSidebar);
+    </script>
+</body>
+</html>
